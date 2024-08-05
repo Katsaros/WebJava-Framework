@@ -1,4 +1,4 @@
-package com.megadeploy.annotations;
+package com.megadeploy.annotations.core;
 
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;

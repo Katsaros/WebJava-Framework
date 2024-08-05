@@ -1,6 +1,10 @@
 package com.megadeploy.core;
 
-import com.megadeploy.annotations.*;
+import com.megadeploy.annotations.core.Endpoint;
+import com.megadeploy.annotations.request.Delete;
+import com.megadeploy.annotations.request.Get;
+import com.megadeploy.annotations.request.Post;
+import com.megadeploy.annotations.request.Put;
 
 import java.lang.reflect.Method;
 import java.util.List;

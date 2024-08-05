@@ -1,6 +1,10 @@
 package com.megadeploy.endpoints;
 
-import com.megadeploy.annotations.*;
+import com.megadeploy.annotations.core.Endpoint;
+import com.megadeploy.annotations.request.Delete;
+import com.megadeploy.annotations.request.Get;
+import com.megadeploy.annotations.request.Post;
+import com.megadeploy.annotations.request.Put;
 
 @Endpoint("/status")
 public class StatusEndpoint {
