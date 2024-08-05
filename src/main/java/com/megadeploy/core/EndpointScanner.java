@@ -5,7 +5,7 @@ import com.megadeploy.annotations.*;
 import java.lang.reflect.Method;
 import java.util.List;
 
-import static com.megadeploy.utility.UtilityTexts.logApp;
+import static com.megadeploy.utility.LogUtil.logApp;
 
 public class EndpointScanner {
 

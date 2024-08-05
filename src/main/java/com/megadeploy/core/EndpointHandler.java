@@ -6,7 +6,7 @@ import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.Map;
 
-import static com.megadeploy.utility.UtilityTexts.logApp;
+import static com.megadeploy.utility.LogUtil.logApp;
 
 public class EndpointHandler {
 

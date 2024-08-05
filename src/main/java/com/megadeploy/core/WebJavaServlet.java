@@ -9,7 +9,7 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-import static com.megadeploy.utility.UtilityTexts.logWebJava;
+import static com.megadeploy.utility.LogUtil.logWebJava;
 
 public class WebJavaServlet extends HttpServlet {
 
