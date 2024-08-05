@@ -1,6 +1,8 @@
 package com.megadeploy.core;
 
+import com.megadeploy.annotations.core.AutoInitialize;
 import com.megadeploy.dataObjects.ApiResponse;
+import com.megadeploy.dependencyinjection.DependencyRegistry;
 import com.megadeploy.utility.JsonResponseUtil;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
@@ -8,6 +10,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
@@ -16,9 +19,12 @@ import static com.megadeploy.utility.LogUtil.logWebJava;
 public class WebJavaServlet extends HttpServlet {
 
     private final EndpointHandler endpointHandler;
+    private final DependencyRegistry dependencyRegistry;
 
-    public WebJavaServlet(EndpointHandler endpointHandler) {
+    public WebJavaServlet(EndpointHandler endpointHandler,
+                          DependencyRegistry dependencyRegistry) {
         this.endpointHandler = endpointHandler;
+        this.dependencyRegistry = dependencyRegistry;
     }
 
     @Override
@@ -103,6 +109,7 @@ public class WebJavaServlet extends HttpServlet {
 
             if (method != null) {
                 Object endpointInstance = method.getDeclaringClass().getDeclaredConstructor().newInstance();
+                injectDependencies(endpointInstance);
                 Object result = method.invoke(endpointInstance);
                 String jsonResponse = JsonResponseUtil.toJson(result);
                 if (jsonResponse == null) {
@@ -120,6 +127,18 @@ public class WebJavaServlet extends HttpServlet {
             throw new RuntimeException(e);
         } catch (Exception e) {
             throw new RuntimeException(e);
+        }
+    }
+
+    private void injectDependencies(Object instance) throws IllegalAccessException {
+        Field[] fields = instance.getClass().getDeclaredFields();
+        for (Field field : fields) {
+            if (field.isAnnotationPresent(AutoInitialize.class)) {
+                Class<?> dependencyClass = field.getType();
+                Object dependencyInstance = dependencyRegistry.getInstance(dependencyClass);
+                field.setAccessible(true);
+                field.set(instance, dependencyInstance);
+            }
         }
     }
 }
