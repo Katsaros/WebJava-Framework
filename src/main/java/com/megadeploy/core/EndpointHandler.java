@@ -10,10 +10,10 @@ import static com.megadeploy.utility.UtilityTexts.logApp;
 
 public class EndpointHandler {
 
-    private final Map<String, Method> getEndpoints = new HashMap<>();
-    private final Map<String, Method> postEndpoints = new HashMap<>();
-    private final Map<String, Method> putEndpoints = new HashMap<>();
-    private final Map<String, Method> deleteEndpoints = new HashMap<>();
+    final Map<String, Method> getEndpoints = new HashMap<>();
+    final Map<String, Method> postEndpoints = new HashMap<>();
+    final Map<String, Method> putEndpoints = new HashMap<>();
+    final Map<String, Method> deleteEndpoints = new HashMap<>();
 
     public void registerEndpoints(Object endpointInstance) {
         Class<?> clazz = endpointInstance.getClass();
