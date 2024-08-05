@@ -9,11 +9,13 @@ import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
-public class RequestHandler extends HttpServlet {
+import static com.megadeploy.utility.UtilityTexts.logWebJava;
+
+public class WebJavaServlet extends HttpServlet {
 
     private final EndpointHandler endpointHandler;
 
-    public RequestHandler(EndpointHandler endpointHandler) {
+    public WebJavaServlet(EndpointHandler endpointHandler) {
         this.endpointHandler = endpointHandler;
     }
 
@@ -40,6 +42,15 @@ public class RequestHandler extends HttpServlet {
     private void handleRequest(HttpServletRequest req, HttpServletResponse resp, String methodType) throws IOException {
         String path = req.getPathInfo();
 
+        if (path != null) {
+            path = path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
+        }
+        if (path == null || path.isEmpty()) {
+            path = "/";
+        }
+
+        logWebJava("Handling request: " + methodType + " " + path);
+
         try {
             Method method = null;
             switch (methodType) {
@@ -58,14 +69,21 @@ public class RequestHandler extends HttpServlet {
             }
 
             if (method != null) {
-                method.invoke(method.getDeclaringClass().newInstance());
+                Object endpointInstance = method.getDeclaringClass().getDeclaredConstructor().newInstance();
+                String result = (String) method.invoke(endpointInstance);
+                if (result == null) {
+                    result = "";
+                }
                 resp.setStatus(HttpServletResponse.SC_OK);
+                resp.getWriter().write(result);
             } else {
                 resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
             }
         } catch (IllegalAccessException | InvocationTargetException | InstantiationException e) {
             e.printStackTrace();
             resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+        } catch (NoSuchMethodException e) {
+            throw new RuntimeException(e);
         }
     }
 }

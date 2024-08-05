@@ -4,24 +4,31 @@ import com.megadeploy.annotations.*;
 
 @Endpoint("/status")
 public class StatusEndpoint {
-
     @Get("/")
-    public void getStatus() {
-        System.out.println("WebJava GET is up.");
+    public String getStatus() {
+        String msg = "WebJava GET is up.";
+        System.out.println(msg);
+        return msg;
     }
 
     @Post("/")
-    public void getPostStatus() {
-        System.out.println("WebJava POST is up.");
+    public String getPostStatus() {
+        String msg = "WebJava POST is up.";
+        System.out.println(msg);
+        return msg;
     }
 
     @Put("/")
-    public void getPutStatus() {
-        System.out.println("WebJava PUT is up.");
+    public String getPutStatus() {
+        String msg = "WebJava PUT is up.";
+        System.out.println(msg);
+        return msg;
     }
 
     @Delete("/")
-    public void getDeleteStatus() {
-        System.out.println("WebJava DELETE is up.");
+    public String getDeleteStatus() {
+        String msg = "WebJava DELETE is up.";
+        System.out.println(msg);
+        return msg;
     }
 }

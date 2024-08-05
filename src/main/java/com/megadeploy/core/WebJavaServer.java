@@ -22,7 +22,7 @@ public class WebJavaServer {
         context.setContextPath("/");
         server.setHandler(context);
 
-        context.addServlet(new ServletHolder(new RequestHandler(endpointHandler)), "/*");
+        context.addServlet(new ServletHolder(new WebJavaServlet(endpointHandler)), "/*");
 
         server.start();
         server.join();
