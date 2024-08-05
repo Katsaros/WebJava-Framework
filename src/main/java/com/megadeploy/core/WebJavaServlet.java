@@ -1,5 +1,7 @@
 package com.megadeploy.core;
 
+import com.megadeploy.dataObjects.ApiResponse;
+import com.megadeploy.utility.JsonResponseUtil;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
@@ -21,27 +23,42 @@ public class WebJavaServlet extends HttpServlet {
 
     @Override
     protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        handleRequest(req, resp, "GET");
+        try {
+            handleRequest(req, resp, "GET");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
     protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        handleRequest(req, resp, "POST");
+        try {
+            handleRequest(req, resp, "POST");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
     protected void doPut(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        handleRequest(req, resp, "PUT");
+        try {
+            handleRequest(req, resp, "PUT");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     @Override
     protected void doDelete(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        handleRequest(req, resp, "DELETE");
+        try {
+            handleRequest(req, resp, "DELETE");
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
-    private void handleRequest(HttpServletRequest req, HttpServletResponse resp, String methodType) throws IOException {
+    private void handleRequest(HttpServletRequest req, HttpServletResponse resp, String methodType) throws Exception {
         String path = req.getPathInfo();
-
         if (path != null) {
             path = path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
         }
@@ -51,6 +68,22 @@ public class WebJavaServlet extends HttpServlet {
 
         logWebJava("Handling request: " + methodType + " " + path);
 
+        String contentType = resp.getContentType();
+        if (contentType != null && contentType.equals("application/json")) {
+            handleApiResponseRequestType(resp);
+        } else {
+            handleOtherResponseRequestTypes(resp, methodType, path);
+        }
+    }
+
+    private static void handleApiResponseRequestType(HttpServletResponse resp) throws Exception {
+        ApiResponse<?> apiResponse = (ApiResponse<?>) resp;
+        String json = apiResponse.toJson();
+        resp.setContentType("application/json");
+        resp.getWriter().write(json);
+    }
+
+    private void handleOtherResponseRequestTypes(HttpServletResponse resp, String methodType, String path) throws IOException {
         try {
             Method method = null;
             switch (methodType) {
@@ -70,12 +103,13 @@ public class WebJavaServlet extends HttpServlet {
 
             if (method != null) {
                 Object endpointInstance = method.getDeclaringClass().getDeclaredConstructor().newInstance();
-                String result = (String) method.invoke(endpointInstance);
-                if (result == null) {
-                    result = "";
+                Object result = method.invoke(endpointInstance);
+                String jsonResponse = JsonResponseUtil.toJson(result);
+                if (jsonResponse == null) {
+                    jsonResponse = "";
                 }
                 resp.setStatus(HttpServletResponse.SC_OK);
-                resp.getWriter().write(result);
+                resp.getWriter().write(jsonResponse);
             } else {
                 resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
             }
@@ -83,6 +117,8 @@ public class WebJavaServlet extends HttpServlet {
             e.printStackTrace();
             resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
         } catch (NoSuchMethodException e) {
+            throw new RuntimeException(e);
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
