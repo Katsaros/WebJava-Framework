@@ -1,4 +1,4 @@
-package com.megadeploy.annotations.core;
+package com.megadeploy.annotations.initializer;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

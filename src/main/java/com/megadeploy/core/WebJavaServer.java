@@ -1,6 +1,9 @@
 package com.megadeploy.core;
 
-import com.megadeploy.annotations.core.AutoInitialize;
+import com.megadeploy.annotations.core.DataObject;
+import com.megadeploy.annotations.core.Operator;
+import com.megadeploy.annotations.core.Storage;
+import com.megadeploy.annotations.initializer.AutoInitialize;
 import com.megadeploy.dependencyinjection.DependencyRegistry;
 import com.megadeploy.endpoints.StatusEndpoint;
 import com.megadeploy.utility.BannerUtil;
@@ -32,7 +35,7 @@ public class WebJavaServer {
     }
 
     private void findAndRegisterAllEndpoints() throws Exception {
-        LogUtil.logWebJava("Registering All Application Endpoints");
+        LogUtil.logWebJavaN("Registering All Application Endpoints");
         registerMainFrameworkEndpoints();
         scanForEndpointsInTheApplicationBasePackageAndSubPackages();
     }
@@ -55,7 +58,7 @@ public class WebJavaServer {
     }
 
     private void configureAndStartServer() throws Exception {
-        LogUtil.logWebJava("Starting Server");
+        LogUtil.logWebJavaN("Starting Server");
         ServletContextHandler context = new ServletContextHandler(ServletContextHandler.SESSIONS);
         context.setContextPath("/");
         server.setHandler(context);
@@ -69,7 +72,11 @@ public class WebJavaServer {
     private void initializeAutoInitializeClasses() throws Exception {
         List<Class<?>> classes = ClassFinder.findClasses(basePackage);
         for (Class<?> clazz : classes) {
-            if (clazz.isAnnotationPresent(AutoInitialize.class)) {
+            if (clazz.isAnnotationPresent(AutoInitialize.class) ||
+                    clazz.isAnnotationPresent(Operator.class) ||
+                    clazz.isAnnotationPresent(DataObject.class) ||
+                    clazz.isAnnotationPresent(Storage.class)) {
+
                 Object instance = clazz.getDeclaredConstructor().newInstance();
                 dependencyRegistry.register(clazz, instance);
             }

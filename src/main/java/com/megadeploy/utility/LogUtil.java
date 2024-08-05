@@ -6,8 +6,12 @@ public class LogUtil {
     private LogUtil() {
     }
 
-    public static void logWebJava(String message) {
+    public static void logWebJavaN(String message) {
         System.out.println("\n"+WEB_JAVA +"["+message+"]");
+    }
+
+    public static void logWebJava(String message) {
+        System.out.println(WEB_JAVA +"["+message+"]");
     }
 
     public static void logApp(String message) {

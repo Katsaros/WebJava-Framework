@@ -1,6 +1,9 @@
 package com.megadeploy.core;
 
-import com.megadeploy.annotations.core.AutoInitialize;
+import com.megadeploy.annotations.core.DataObject;
+import com.megadeploy.annotations.core.Operator;
+import com.megadeploy.annotations.core.Storage;
+import com.megadeploy.annotations.initializer.AutoInitialize;
 import com.megadeploy.dataObjects.ApiResponse;
 import com.megadeploy.dependencyinjection.DependencyRegistry;
 import com.megadeploy.utility.JsonResponseUtil;
@@ -15,6 +18,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 import static com.megadeploy.utility.LogUtil.logWebJava;
+import static com.megadeploy.utility.LogUtil.logWebJavaN;
 
 public class WebJavaServlet extends HttpServlet {
 
@@ -133,9 +137,13 @@ public class WebJavaServlet extends HttpServlet {
     private void injectDependencies(Object instance) throws IllegalAccessException {
         Field[] fields = instance.getClass().getDeclaredFields();
         for (Field field : fields) {
-            if (field.isAnnotationPresent(AutoInitialize.class)) {
+            if (field.isAnnotationPresent(AutoInitialize.class) ||
+                    field.isAnnotationPresent(Operator.class) ||
+                    field.isAnnotationPresent(DataObject.class) ||
+                    field.isAnnotationPresent(Storage.class)) {
+
                 Class<?> dependencyClass = field.getType();
-                Object dependencyInstance = dependencyRegistry.getInstance(dependencyClass);
+                Object dependencyInstance = dependencyRegistry.getInstanceByType(dependencyClass);
                 field.setAccessible(true);
                 field.set(instance, dependencyInstance);
             }

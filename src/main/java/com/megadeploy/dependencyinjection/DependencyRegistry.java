@@ -14,4 +14,13 @@ public class DependencyRegistry {
     public <T> T getInstance(Class<T> clazz) {
         return (T) instances.get(clazz);
     }
+
+    public <T> T getInstanceByType(Class<T> type) {
+        for (Map.Entry<Class<?>, Object> entry : instances.entrySet()) {
+            if (type.isAssignableFrom(entry.getKey())) {
+                return (T) entry.getValue();
+            }
+        }
+        return null;
+    }
 }
