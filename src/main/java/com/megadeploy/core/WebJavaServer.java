@@ -6,6 +6,7 @@ import com.megadeploy.annotations.core.Storage;
 import com.megadeploy.annotations.initializer.AutoInitialize;
 import com.megadeploy.dependencyinjection.DependencyRegistry;
 import com.megadeploy.endpoints.StatusEndpoint;
+import com.megadeploy.generators.OpenApiGenerator;
 import com.megadeploy.utility.BannerUtil;
 import com.megadeploy.utility.LogUtil;
 import org.eclipse.jetty.server.Server;
@@ -19,18 +20,22 @@ public class WebJavaServer {
     private final EndpointHandler endpointHandler;
     private final String basePackage;
     private final DependencyRegistry dependencyRegistry;
+    private final int mainPort;
+    private static final String outputPath = "src/main/resources/openapi.json";
 
     public WebJavaServer(int port, Class<?> mainClass) {
         this.server = new Server(port);
         this.endpointHandler = new EndpointHandler();
         this.dependencyRegistry = new DependencyRegistry();
         this.basePackage = mainClass.getPackage().getName();
+        this.mainPort = port;
     }
 
     public void start() throws Exception {
         printWebJavaBanner();
         initializeAutoInitializeClasses();
         findAndRegisterAllEndpoints();
+        generateOpenApiSpec();
         configureAndStartServer();
     }
 
@@ -65,6 +70,13 @@ public class WebJavaServer {
 
         context.addServlet(new ServletHolder(new WebJavaServlet(endpointHandler, dependencyRegistry)), "/*");
 
+        // Register the OpenAPI servlet
+        context.addServlet(new ServletHolder(new OpenApiServlet()), "/openapi.json");
+
+        // Register the Swagger UI servlet
+        context.addServlet(new ServletHolder(new SwaggerUiServlet(mainPort)), "/swagger-ui/*");
+
+
         server.start();
         server.join();
     }
@@ -83,4 +95,11 @@ public class WebJavaServer {
         }
     }
 
+    private void generateOpenApiSpec() throws Exception {
+        OpenApiGenerator.generateOpenApiSpec(outputPath, basePackage);
+    }
+
+    public static String getOutputPath() {
+        return outputPath;
+    }
 }

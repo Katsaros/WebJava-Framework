@@ -1,4 +1,4 @@
-package com.megadeploy.dataObjects;
+package com.megadeploy.dataobjects;
 
 import com.megadeploy.utility.JsonResponseUtil;
 

@@ -4,7 +4,7 @@ import com.megadeploy.annotations.core.DataObject;
 import com.megadeploy.annotations.core.Operator;
 import com.megadeploy.annotations.core.Storage;
 import com.megadeploy.annotations.initializer.AutoInitialize;
-import com.megadeploy.dataObjects.ApiResponse;
+import com.megadeploy.dataobjects.ApiResponse;
 import com.megadeploy.dependencyinjection.DependencyRegistry;
 import com.megadeploy.utility.JsonResponseUtil;
 import jakarta.servlet.ServletException;
@@ -18,7 +18,6 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 import static com.megadeploy.utility.LogUtil.logWebJava;
-import static com.megadeploy.utility.LogUtil.logWebJavaN;
 
 public class WebJavaServlet extends HttpServlet {
 
