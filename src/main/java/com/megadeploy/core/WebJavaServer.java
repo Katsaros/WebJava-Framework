@@ -12,6 +12,7 @@ import com.megadeploy.database.InMemoryDatabaseInitializer;
 import com.megadeploy.dependencyinjection.DependencyRegistry;
 import com.megadeploy.endpoints.StatusEndpoint;
 import com.megadeploy.generators.OpenApiGenerator;
+import com.megadeploy.storages.InMemoryStorage;
 import com.megadeploy.utility.BannerUtil;
 import com.megadeploy.utility.LogUtil;
 import org.eclipse.jetty.server.Server;
@@ -42,7 +43,7 @@ public class WebJavaServer {
 
     public void start() throws Exception {
         printWebJavaBanner();
-        initializeDatabase();
+        initializeInMemoryDatabase();
         initializeAutoInitializeClasses();
         findAndRegisterAllEndpoints();
         generateOpenApiSpec();
@@ -58,14 +59,18 @@ public class WebJavaServer {
         inMemoryDatabaseInitializer.shutdownDatabase();
     }
 
-    private void initializeDatabase() {
+    private void initializeInMemoryDatabase() {
         inMemoryDatabaseInitializer.initializeDatabase();
         if (inMemoryDatabaseInitializer.getConnection() != null) {
             Connection connection = inMemoryDatabaseInitializer.getConnection();
+            InMemoryStorage inMemoryStorage = new InMemoryStorage(connection);
+
             dependencyRegistry.register(Connection.class, connection);
-            dependencyRegistry.register(InMemoryDatabaseOperator.class, new InMemoryDatabaseOperator(connection));
+            dependencyRegistry.register(InMemoryStorage.class, inMemoryStorage);
+            dependencyRegistry.register(InMemoryDatabaseOperator.class, new InMemoryDatabaseOperator(inMemoryStorage));
         }
     }
+
 
     private void findAndRegisterAllEndpoints() throws Exception {
         LogUtil.logWebJavaN("Registering All Application Endpoints");

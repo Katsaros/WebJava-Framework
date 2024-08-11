@@ -1,50 +1,35 @@
 package com.megadeploy.annotations.operators;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
+import com.megadeploy.storages.InMemoryStorage;
+
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
 public class InMemoryDatabaseOperator {
 
-    protected final Connection connection;
+    private InMemoryStorage inMemoryStorage;
 
-    public InMemoryDatabaseOperator(Connection connection) {
-        this.connection = connection;
+    public InMemoryDatabaseOperator(InMemoryStorage inMemoryStorage) {
+        this.inMemoryStorage = inMemoryStorage;
     }
 
     public void createTable(String tableName, String tableDefinition) throws SQLException {
-        String sql = "CREATE TABLE " + tableName + " (" + tableDefinition + ")";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.execute();
-        }
+        inMemoryStorage.createTable(tableName, tableDefinition);
     }
 
     public void insertData(String tableName, String columns, String values) throws SQLException {
-        String sql = "INSERT INTO " + tableName + " (" + columns + ") VALUES (" + values + ")";
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.executeUpdate();
-        }
+        inMemoryStorage.insertData(tableName, columns, values);
     }
 
     public void updateData(String tableName, String setClause, String whereClause) throws SQLException {
-        String sql = "UPDATE " + tableName + " SET " + setClause + " WHERE " + whereClause;
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.executeUpdate();
-        }
+        inMemoryStorage.updateData(tableName, setClause, whereClause);
     }
 
     public ResultSet getData(String tableName, String columns, String whereClause) throws SQLException {
-        String sql = "SELECT " + columns + " FROM " + tableName + " WHERE " + whereClause;
-        PreparedStatement stmt = connection.prepareStatement(sql);
-        return stmt.executeQuery();
+        return inMemoryStorage.getData(tableName, columns, whereClause);
     }
 
     public void deleteData(String tableName, String whereClause) throws SQLException {
-        String sql = "DELETE FROM " + tableName + " WHERE " + whereClause;
-        try (PreparedStatement stmt = connection.prepareStatement(sql)) {
-            stmt.executeUpdate();
-        }
+        inMemoryStorage.deleteData(tableName, whereClause);
     }
 }
-
