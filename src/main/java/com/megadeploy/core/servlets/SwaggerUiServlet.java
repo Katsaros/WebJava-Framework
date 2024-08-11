@@ -1,5 +1,6 @@
-package com.megadeploy.core;
+package com.megadeploy.core.servlets;
 
+import com.megadeploy.core.WebJavaServer;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -16,7 +17,7 @@ public class SwaggerUiServlet extends HttpServlet {
     private static final WebJarAssetLocator assetLocator = new WebJarAssetLocator();
 
     public SwaggerUiServlet(int mainPort) {
-        logWebJava("The file openapi.json will be generated in " + WebJavaServer.getOutputPath() + ". If you can't see it after run then click on 'Reload from Disk'");
+        logWebJava("The file openapi.json will be generated in " + WebJavaServer.getOpenapiJson() + ". If you can't see it after run then click on 'Reload from Disk'");
         logWebJava("File openapi.json exposed at →", "http://localhost:" + mainPort + "/openapi.json");
         logWebJava("Swagger API exposed at →", "http://localhost:" + mainPort + "/swagger-ui/index.html");
     }
@@ -46,7 +47,6 @@ public class SwaggerUiServlet extends HttpServlet {
                 os.write(indexHtml.getBytes(StandardCharsets.UTF_8));
             } else if ("/swagger-initializer.js".equals(path)) {
                 String initializerJs = new String(is.readAllBytes(), StandardCharsets.UTF_8);
-                // Modify the swagger-initializer.js to point to openapi.json
                 String modifiedJs = initializerJs.replace(
                         "url: \"https://petstore.swagger.io/v2/swagger.json\"",
                         "url: \"/openapi.json\""

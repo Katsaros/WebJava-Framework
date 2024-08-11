@@ -1,10 +1,11 @@
-package com.megadeploy.core;
+package com.megadeploy.core.servlets;
 
 import com.megadeploy.annotations.core.DataObject;
 import com.megadeploy.annotations.core.Operator;
 import com.megadeploy.annotations.core.Storage;
 import com.megadeploy.annotations.initializer.AutoInitialize;
-import com.megadeploy.dataobjects.ApiResponse;
+import com.megadeploy.core.EndpointHandler;
+import com.megadeploy.responses.ApiResponse;
 import com.megadeploy.dependencyinjection.DependencyRegistry;
 import com.megadeploy.utility.JsonResponseUtil;
 import jakarta.servlet.ServletException;

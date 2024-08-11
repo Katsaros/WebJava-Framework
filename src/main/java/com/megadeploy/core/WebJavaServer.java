@@ -4,6 +4,11 @@ import com.megadeploy.annotations.core.DataObject;
 import com.megadeploy.annotations.core.Operator;
 import com.megadeploy.annotations.core.Storage;
 import com.megadeploy.annotations.initializer.AutoInitialize;
+import com.megadeploy.annotations.operators.InMemoryDatabaseOperator;
+import com.megadeploy.core.servlets.OpenApiServlet;
+import com.megadeploy.core.servlets.SwaggerUiServlet;
+import com.megadeploy.core.servlets.WebJavaServlet;
+import com.megadeploy.database.InMemoryDatabaseInitializer;
 import com.megadeploy.dependencyinjection.DependencyRegistry;
 import com.megadeploy.endpoints.StatusEndpoint;
 import com.megadeploy.generators.OpenApiGenerator;
@@ -13,6 +18,8 @@ import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 
+import java.lang.reflect.Constructor;
+import java.sql.Connection;
 import java.util.List;
 
 public class WebJavaServer {
@@ -21,7 +28,8 @@ public class WebJavaServer {
     private final String basePackage;
     private final DependencyRegistry dependencyRegistry;
     private final int mainPort;
-    private static final String outputPath = "src/main/resources/openapi.json";
+    private static final String OPENAPI_JSON = "src/main/resources/openapi.json";
+    private final InMemoryDatabaseInitializer inMemoryDatabaseInitializer;
 
     public WebJavaServer(int port, Class<?> mainClass) {
         this.server = new Server(port);
@@ -29,14 +37,34 @@ public class WebJavaServer {
         this.dependencyRegistry = new DependencyRegistry();
         this.basePackage = mainClass.getPackage().getName();
         this.mainPort = port;
+        this.inMemoryDatabaseInitializer = new InMemoryDatabaseInitializer();
     }
 
     public void start() throws Exception {
         printWebJavaBanner();
+        initializeDatabase();
         initializeAutoInitializeClasses();
         findAndRegisterAllEndpoints();
         generateOpenApiSpec();
         configureAndStartServer();
+    }
+
+    public void stop() throws Exception {
+        shutdownInMemoryDatabase();
+        server.stop();
+    }
+
+    private void shutdownInMemoryDatabase() {
+        inMemoryDatabaseInitializer.shutdownDatabase();
+    }
+
+    private void initializeDatabase() {
+        inMemoryDatabaseInitializer.initializeDatabase();
+        if (inMemoryDatabaseInitializer.getConnection() != null) {
+            Connection connection = inMemoryDatabaseInitializer.getConnection();
+            dependencyRegistry.register(Connection.class, connection);
+            dependencyRegistry.register(InMemoryDatabaseOperator.class, new InMemoryDatabaseOperator(connection));
+        }
     }
 
     private void findAndRegisterAllEndpoints() throws Exception {
@@ -76,9 +104,9 @@ public class WebJavaServer {
         // Register the Swagger UI servlet
         context.addServlet(new ServletHolder(new SwaggerUiServlet(mainPort)), "/swagger-ui/*");
 
-
         server.start();
         server.join();
+        Runtime.getRuntime().addShutdownHook(new Thread(inMemoryDatabaseInitializer::shutdownDatabase));
     }
 
     private void initializeAutoInitializeClasses() throws Exception {
@@ -89,17 +117,37 @@ public class WebJavaServer {
                     clazz.isAnnotationPresent(DataObject.class) ||
                     clazz.isAnnotationPresent(Storage.class)) {
 
-                Object instance = clazz.getDeclaredConstructor().newInstance();
+                Object instance = createInstanceWithDependencies(clazz);
                 dependencyRegistry.register(clazz, instance);
             }
         }
     }
 
-    private void generateOpenApiSpec() throws Exception {
-        OpenApiGenerator.generateOpenApiSpec(outputPath, basePackage);
+    private Object createInstanceWithDependencies(Class<?> clazz) throws Exception {
+        Constructor<?>[] constructors = clazz.getConstructors();
+
+        for (Constructor<?> constructor : constructors) {
+            if (constructor.isAnnotationPresent(AutoInitialize.class)) {
+                Object[] parameters = resolveDependencies(constructor.getParameterTypes());
+                return constructor.newInstance(parameters);
+            }
+        }
+        return clazz.getDeclaredConstructor().newInstance();
     }
 
-    public static String getOutputPath() {
-        return outputPath;
+    private Object[] resolveDependencies(Class<?>[] parameterTypes) {
+        Object[] parameters = new Object[parameterTypes.length];
+        for (int i = 0; i < parameterTypes.length; i++) {
+            parameters[i] = dependencyRegistry.getInstanceByType(parameterTypes[i]);
+        }
+        return parameters;
+    }
+
+    private void generateOpenApiSpec() throws Exception {
+        OpenApiGenerator.generateOpenApiSpec(OPENAPI_JSON, basePackage);
+    }
+
+    public static String getOpenapiJson() {
+        return OPENAPI_JSON;
     }
 }

@@ -24,13 +24,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
-import java.util.logging.Logger;
 
 public class OpenApiGenerator {
     private static final String API_TITLE = "WebJava API";
     private static final String API_VERSION = "1.0.0";
     private static final String API_DESCRIPTION = "API documentation for WebJava application";
-    private static final Logger LOGGER = Logger.getLogger(OpenApiGenerator.class.getName());
 
     public static void generateOpenApiSpec(String outputPath, String basePackage) throws Exception {
         Map<String, Object> templateParams = new HashMap<>();
