@@ -1,4 +1,4 @@
-package com.megadeploy.core;
+package com.megadeploy.core.scanners;
 
 import java.io.File;
 import java.io.IOException;

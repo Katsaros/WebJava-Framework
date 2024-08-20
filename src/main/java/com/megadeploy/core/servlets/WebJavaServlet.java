@@ -5,133 +5,132 @@ import com.megadeploy.annotations.core.Operator;
 import com.megadeploy.annotations.core.Storage;
 import com.megadeploy.annotations.initializer.AutoInitialize;
 import com.megadeploy.core.EndpointHandler;
-import com.megadeploy.responses.ApiResponse;
 import com.megadeploy.dependencyinjection.DependencyRegistry;
 import com.megadeploy.utility.JsonResponseUtil;
-import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 
 import static com.megadeploy.utility.LogUtil.logWebJava;
+
+import java.lang.reflect.Constructor;
 
 public class WebJavaServlet extends HttpServlet {
 
     private final EndpointHandler endpointHandler;
     private final DependencyRegistry dependencyRegistry;
 
-    public WebJavaServlet(EndpointHandler endpointHandler,
-                          DependencyRegistry dependencyRegistry) {
+    public WebJavaServlet(EndpointHandler endpointHandler, DependencyRegistry dependencyRegistry) {
         this.endpointHandler = endpointHandler;
         this.dependencyRegistry = dependencyRegistry;
     }
 
     @Override
-    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        try {
-            handleRequest(req, resp, "GET");
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        handleRequest(req, resp, "GET");
     }
 
     @Override
-    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        try {
-            handleRequest(req, resp, "POST");
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    protected void doPost(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        handleRequest(req, resp, "POST");
     }
 
     @Override
-    protected void doPut(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        try {
-            handleRequest(req, resp, "PUT");
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    protected void doPut(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        handleRequest(req, resp, "PUT");
     }
 
     @Override
-    protected void doDelete(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
-        try {
-            handleRequest(req, resp, "DELETE");
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
+    protected void doDelete(HttpServletRequest req, HttpServletResponse resp) throws IOException {
+        handleRequest(req, resp, "DELETE");
     }
 
-    private void handleRequest(HttpServletRequest req, HttpServletResponse resp, String methodType) throws Exception {
+    private void handleRequest(HttpServletRequest req, HttpServletResponse resp, String methodType) throws IOException {
         String path = req.getPathInfo();
-        if (path != null) {
-            path = path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
-        }
-        if (path == null || path.isEmpty()) {
-            path = "/";
-        }
+        path = (path != null && path.endsWith("/")) ? path.substring(0, path.length() - 1) : path;
+        path = (path == null || path.isEmpty()) ? "/" : path;
 
         logWebJava("Handling request: " + methodType + " " + path);
 
-        String contentType = resp.getContentType();
-        if (contentType != null && contentType.equals("application/json")) {
-            handleApiResponseRequestType(resp);
-        } else {
-            handleOtherResponseRequestTypes(resp, methodType, path);
-        }
-    }
-
-    private static void handleApiResponseRequestType(HttpServletResponse resp) throws Exception {
-        ApiResponse<?> apiResponse = (ApiResponse<?>) resp;
-        String json = apiResponse.toJson();
-        resp.setContentType("application/json");
-        resp.getWriter().write(json);
-    }
-
-    private void handleOtherResponseRequestTypes(HttpServletResponse resp, String methodType, String path) throws IOException {
         try {
-            Method method = null;
-            switch (methodType) {
-                case "GET":
-                    method = endpointHandler.getGetEndpoint(path);
-                    break;
-                case "POST":
-                    method = endpointHandler.getPostEndpoint(path);
-                    break;
-                case "PUT":
-                    method = endpointHandler.getPutEndpoint(path);
-                    break;
-                case "DELETE":
-                    method = endpointHandler.getDeleteEndpoint(path);
-                    break;
-            }
-
+            Method method = getEndpointMethod(methodType, path);
             if (method != null) {
-                Object endpointInstance = method.getDeclaringClass().getDeclaredConstructor().newInstance();
-                injectDependencies(endpointInstance);
+                Object endpointInstance = getOrCreateEndpointInstance(method.getDeclaringClass());
                 Object result = method.invoke(endpointInstance);
                 String jsonResponse = JsonResponseUtil.toJson(result);
-                if (jsonResponse == null) {
-                    jsonResponse = "";
-                }
                 resp.setStatus(HttpServletResponse.SC_OK);
-                resp.getWriter().write(jsonResponse);
+                resp.setContentType("application/json");
+                resp.getWriter().write(jsonResponse != null ? jsonResponse : "");
             } else {
                 resp.setStatus(HttpServletResponse.SC_NOT_FOUND);
             }
-        } catch (IllegalAccessException | InvocationTargetException | InstantiationException e) {
+        } catch (Exception e) {
             e.printStackTrace();
             resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
-        } catch (NoSuchMethodException e) {
-            throw new RuntimeException(e);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
+            resp.getWriter().write("Internal server error: " + e.getMessage());
         }
+    }
+
+    private Method getEndpointMethod(String methodType, String path) {
+        switch (methodType) {
+            case "GET":
+                return endpointHandler.getGetEndpoint(path);
+            case "POST":
+                return endpointHandler.getPostEndpoint(path);
+            case "PUT":
+                return endpointHandler.getPutEndpoint(path);
+            case "DELETE":
+                return endpointHandler.getDeleteEndpoint(path);
+            default:
+                return null;
+        }
+    }
+
+    private Object getOrCreateEndpointInstance(Class<?> endpointClass) throws Exception {
+        // Check if instance already exists in the registry
+        Object instance = dependencyRegistry.getInstanceByType(endpointClass);
+        if (instance != null) {
+            return instance;
+        }
+
+        // Create a new instance with dependencies
+        Constructor<?>[] constructors = endpointClass.getDeclaredConstructors();
+        for (Constructor<?> constructor : constructors) {
+            if (constructor.getParameterCount() > 0) {
+                Object[] parameters = resolveDependencies(constructor.getParameterTypes());
+                instance = constructor.newInstance(parameters);
+                break;
+            }
+        }
+
+        if (instance == null) {
+            instance = endpointClass.getDeclaredConstructor().newInstance();
+        }
+
+        injectDependencies(instance);
+        dependencyRegistry.register(endpointClass, instance);
+
+        return instance;
+    }
+
+    private Object[] resolveDependencies(Class<?>[] parameterTypes) {
+        Object[] parameters = new Object[parameterTypes.length];
+        for (int i = 0; i < parameterTypes.length; i++) {
+            parameters[i] = dependencyRegistry.getInstanceByType(parameterTypes[i]);
+            if (parameters[i] == null) {
+                try {
+                    parameters[i] = createInstanceWithDependencies(parameterTypes[i]);
+                    dependencyRegistry.register(parameterTypes[i], parameters[i]);
+                } catch (Exception e) {
+                    throw new IllegalStateException("No instance found for type: " + parameterTypes[i], e);
+                }
+            }
+        }
+        return parameters;
     }
 
     private void injectDependencies(Object instance) throws IllegalAccessException {
@@ -144,9 +143,27 @@ public class WebJavaServlet extends HttpServlet {
 
                 Class<?> dependencyClass = field.getType();
                 Object dependencyInstance = dependencyRegistry.getInstanceByType(dependencyClass);
-                field.setAccessible(true);
-                field.set(instance, dependencyInstance);
+                if (dependencyInstance != null) {
+                    field.setAccessible(true);
+                    field.set(instance, dependencyInstance);
+                }
             }
         }
+    }
+
+    private Object createInstanceWithDependencies(Class<?> clazz) throws Exception {
+        Constructor<?>[] constructors = clazz.getConstructors();
+        for (Constructor<?> constructor : constructors) {
+            if (constructor.isAnnotationPresent(AutoInitialize.class)) {
+                Object[] parameters = resolveDependencies(constructor.getParameterTypes());
+                return constructor.newInstance(parameters);
+            }
+        }
+
+        if (constructors.length == 1 && constructors[0].getParameterCount() == 0) {
+            return clazz.getDeclaredConstructor().newInstance();
+        }
+
+        throw new NoSuchMethodException("No suitable constructor found for " + clazz.getName());
     }
 }

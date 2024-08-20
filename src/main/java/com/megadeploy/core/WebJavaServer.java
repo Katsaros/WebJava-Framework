@@ -1,81 +1,88 @@
 package com.megadeploy.core;
 
 import com.megadeploy.annotations.core.DataObject;
+import com.megadeploy.annotations.core.Endpoint;
 import com.megadeploy.annotations.core.Operator;
 import com.megadeploy.annotations.core.Storage;
 import com.megadeploy.annotations.initializer.AutoInitialize;
-import com.megadeploy.annotations.operators.InMemoryDatabaseOperator;
+import com.megadeploy.core.scanners.ClassFinder;
+import com.megadeploy.database.interfaces.DatabaseManager;
+import com.megadeploy.database.storagemanagers.InMemoryStorageManager;
 import com.megadeploy.core.servlets.OpenApiServlet;
 import com.megadeploy.core.servlets.SwaggerUiServlet;
 import com.megadeploy.core.servlets.WebJavaServlet;
-import com.megadeploy.database.InMemoryDatabaseInitializer;
+import com.megadeploy.database.initializers.InMemoryDatabaseInitializer;
 import com.megadeploy.dependencyinjection.DependencyRegistry;
 import com.megadeploy.endpoints.StatusEndpoint;
 import com.megadeploy.generators.OpenApiGenerator;
-import com.megadeploy.storages.InMemoryStorage;
 import com.megadeploy.utility.BannerUtil;
 import com.megadeploy.utility.LogUtil;
 import org.eclipse.jetty.server.Server;
 import org.eclipse.jetty.servlet.ServletContextHandler;
 import org.eclipse.jetty.servlet.ServletHolder;
 
+import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.sql.Connection;
+import java.sql.SQLException;
 import java.util.List;
 
 public class WebJavaServer {
     private final Server server;
     private final EndpointHandler endpointHandler;
-    private final String basePackage;
     private final DependencyRegistry dependencyRegistry;
     private final int mainPort;
+    private static String appBasePackage = "";
     private static final String OPENAPI_JSON = "src/main/resources/openapi.json";
-    private final InMemoryDatabaseInitializer inMemoryDatabaseInitializer;
+    private final InMemoryStorageManager inMemoryStorageManager;
+    private InMemoryDatabaseInitializer databaseInitializer;
 
-    public WebJavaServer(int port, Class<?> mainClass) {
+    public WebJavaServer(int port, Class<?> mainClass) throws SQLException, IOException, ClassNotFoundException {
+        printWebJavaBanner();
         this.server = new Server(port);
         this.endpointHandler = new EndpointHandler();
         this.dependencyRegistry = new DependencyRegistry();
-        this.basePackage = mainClass.getPackage().getName();
+        this.appBasePackage = mainClass.getPackage().getName();
         this.mainPort = port;
-        this.inMemoryDatabaseInitializer = new InMemoryDatabaseInitializer();
+        databaseInitializer = new InMemoryDatabaseInitializer();
+        databaseInitializer.initializeDatabase();
+        this.inMemoryStorageManager = new InMemoryStorageManager(databaseInitializer.getConnection());
     }
 
     public void start() throws Exception {
-        printWebJavaBanner();
-        initializeInMemoryDatabase();
+        initializeDatabase();
+        findAndRegisterFrameworkEndpoints();
         initializeAutoInitializeClasses();
-        findAndRegisterAllEndpoints();
         generateOpenApiSpec();
         configureAndStartServer();
     }
 
     public void stop() throws Exception {
-        shutdownInMemoryDatabase();
         server.stop();
     }
 
-    private void shutdownInMemoryDatabase() {
-        inMemoryDatabaseInitializer.shutdownDatabase();
+    private Connection createConnection() throws SQLException, IOException, ClassNotFoundException {
+        InMemoryDatabaseInitializer initializer = new InMemoryDatabaseInitializer();
+        initializer.initializeDatabase();
+        return initializer.getConnection();
     }
 
-    private void initializeInMemoryDatabase() {
-        inMemoryDatabaseInitializer.initializeDatabase();
-        if (inMemoryDatabaseInitializer.getConnection() != null) {
-            Connection connection = inMemoryDatabaseInitializer.getConnection();
-            InMemoryStorage inMemoryStorage = new InMemoryStorage(connection);
 
+    private void initializeDatabase() throws SQLException, IOException, ClassNotFoundException {
+        DatabaseManager databaseManager = databaseInitializer.getDatabaseManager();
+        dependencyRegistry.register(DatabaseManager.class, databaseManager);
+
+        Connection connection = inMemoryStorageManager.getConnection();
+        if (connection != null) {
             dependencyRegistry.register(Connection.class, connection);
-            dependencyRegistry.register(InMemoryStorage.class, inMemoryStorage);
-            dependencyRegistry.register(InMemoryDatabaseOperator.class, new InMemoryDatabaseOperator(inMemoryStorage));
+            dependencyRegistry.register(InMemoryStorageManager.class, new InMemoryStorageManager(connection));
         }
     }
 
 
-    private void findAndRegisterAllEndpoints() throws Exception {
-        LogUtil.logWebJavaN("Registering All Application Endpoints");
+    private void findAndRegisterFrameworkEndpoints() throws Exception {
+        LogUtil.logWebJavaN("Registering All Framework Endpoints");
         registerMainFrameworkEndpoints();
-        scanForEndpointsInTheApplicationBasePackageAndSubPackages();
     }
 
     private static void printWebJavaBanner() {
@@ -88,11 +95,6 @@ public class WebJavaServer {
 
     public void addEndpoint(Object endpointInstance) {
         endpointHandler.registerEndpoints(endpointInstance);
-    }
-
-    private void scanForEndpointsInTheApplicationBasePackageAndSubPackages() throws Exception {
-        EndpointScanner scanner = new EndpointScanner(endpointHandler);
-        scanner.scanAndRegisterEndpoints(basePackage);
     }
 
     private void configureAndStartServer() throws Exception {
@@ -111,19 +113,35 @@ public class WebJavaServer {
 
         server.start();
         server.join();
-        Runtime.getRuntime().addShutdownHook(new Thread(inMemoryDatabaseInitializer::shutdownDatabase));
     }
 
     private void initializeAutoInitializeClasses() throws Exception {
-        List<Class<?>> classes = ClassFinder.findClasses(basePackage);
-        for (Class<?> clazz : classes) {
-            if (clazz.isAnnotationPresent(AutoInitialize.class) ||
-                    clazz.isAnnotationPresent(Operator.class) ||
-                    clazz.isAnnotationPresent(DataObject.class) ||
-                    clazz.isAnnotationPresent(Storage.class)) {
+        // Find all classes in both the framework and the demo app
+        List<Class<?>> classes = ClassFinder.findClasses(appBasePackage);
 
+        // Ensure @Storage classes are initialized first
+        for (Class<?> clazz : classes) {
+            if (clazz.isAnnotationPresent(Storage.class)) {
                 Object instance = createInstanceWithDependencies(clazz);
                 dependencyRegistry.register(clazz, instance);
+            }
+        }
+
+        // Initialize other annotated classes
+        for (Class<?> clazz : classes) {
+            if (clazz.isAnnotationPresent(AutoInitialize.class) ||
+                        clazz.isAnnotationPresent(Operator.class) ||
+                        clazz.isAnnotationPresent(DataObject.class)) {
+                    Object instance = createInstanceWithDependencies(clazz);
+                    dependencyRegistry.register(clazz, instance);
+            }
+        }
+
+        LogUtil.logWebJavaN("Registering All Application Endpoints");
+        for (Class<?> clazz : classes) {
+            if (clazz.isAnnotationPresent(Endpoint.class)) {
+                Object instance = createInstanceWithDependencies(clazz);
+                addEndpoint(instance);
             }
         }
     }
@@ -137,22 +155,41 @@ public class WebJavaServer {
                 return constructor.newInstance(parameters);
             }
         }
-        return clazz.getDeclaredConstructor().newInstance();
+
+        // Fallback to default constructor if no annotated constructor is found
+        if (constructors.length == 1 && constructors[0].getParameterCount() == 0) {
+            return clazz.getDeclaredConstructor().newInstance();
+        }
+
+        throw new NoSuchMethodException("No suitable constructor found for " + clazz.getName());
     }
 
     private Object[] resolveDependencies(Class<?>[] parameterTypes) {
         Object[] parameters = new Object[parameterTypes.length];
         for (int i = 0; i < parameterTypes.length; i++) {
             parameters[i] = dependencyRegistry.getInstanceByType(parameterTypes[i]);
+            if (parameters[i] == null) {
+                try {
+                    parameters[i] = createInstanceWithDependencies(parameterTypes[i]);
+                    dependencyRegistry.register(parameterTypes[i], parameters[i]);
+                } catch (Exception e) {
+                    throw new IllegalStateException("No instance found for type: " + parameterTypes[i], e);
+                }
+            }
         }
         return parameters;
     }
 
+
     private void generateOpenApiSpec() throws Exception {
-        OpenApiGenerator.generateOpenApiSpec(OPENAPI_JSON, basePackage);
+        OpenApiGenerator.generateOpenApiSpec(OPENAPI_JSON, appBasePackage);
     }
 
     public static String getOpenapiJson() {
         return OPENAPI_JSON;
+    }
+
+    public static String getAppBasePackage() {
+        return appBasePackage;
     }
 }

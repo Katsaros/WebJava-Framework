@@ -7,7 +7,7 @@ import com.megadeploy.annotations.request.Delete;
 import com.megadeploy.annotations.request.Get;
 import com.megadeploy.annotations.request.Post;
 import com.megadeploy.annotations.request.Put;
-import com.megadeploy.core.ClassFinder;
+import com.megadeploy.core.scanners.ClassFinder;
 import io.swagger.v3.oas.models.OpenAPI;
 import io.swagger.v3.oas.models.PathItem;
 import io.swagger.v3.oas.models.Paths;
