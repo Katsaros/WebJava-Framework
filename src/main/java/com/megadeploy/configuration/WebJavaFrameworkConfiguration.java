@@ -11,9 +11,13 @@ public class WebJavaFrameworkConfiguration {
     private static final Logger LOGGER = Logger.getLogger(WebJavaFrameworkConfiguration.class.getName());
 
     private boolean enableInMemoryDatabase;
+    private boolean enableDummyStorageManager;
 
     public boolean isEnableInMemoryDatabase() {
         return enableInMemoryDatabase;
+    }
+    public boolean isEnableDummyStorageManager() {
+        return enableDummyStorageManager;
     }
 
     public static WebJavaFrameworkConfiguration loadConfig() {
@@ -34,6 +38,7 @@ public class WebJavaFrameworkConfiguration {
     private static WebJavaFrameworkConfiguration getDefaultConfig() {
         WebJavaFrameworkConfiguration defaultConfig = new WebJavaFrameworkConfiguration();
         defaultConfig.enableInMemoryDatabase = false;
+        defaultConfig.enableDummyStorageManager = false;
         return defaultConfig;
     }
 }

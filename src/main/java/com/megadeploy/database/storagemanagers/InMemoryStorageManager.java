@@ -1,7 +1,7 @@
 package com.megadeploy.database.storagemanagers;
 
 import com.megadeploy.annotations.core.DataObject;
-import com.megadeploy.database.interfaces.DatabaseManager;
+import com.megadeploy.database.interfaces.StorageManagerVoid;
 import com.megadeploy.utility.LogUtil;
 
 import java.lang.reflect.Field;
@@ -10,7 +10,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 
-public class InMemoryStorageManager implements DatabaseManager {
+public class InMemoryStorageManager implements StorageManagerVoid {
 
     private final Connection connection;
 

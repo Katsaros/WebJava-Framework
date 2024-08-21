@@ -2,3 +2,5 @@
 # To enable the Apache Derby in-memory database for your demo application, update the variable to true in your `webjava-configuration.yml`
 database:
   enableInMemoryDatabase: false
+storageManagers:
+  enableDummyStorageManager: false

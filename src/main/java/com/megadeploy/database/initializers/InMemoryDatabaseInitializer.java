@@ -13,23 +13,9 @@ import com.megadeploy.annotations.core.DataObject;
 import com.megadeploy.core.WebJavaServer;
 import com.megadeploy.core.scanners.ClassFinder;
 
-import java.lang.reflect.Field;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
-import java.sql.Statement;
-import java.util.Arrays;
-import java.util.List;
-import java.util.stream.Collectors;
-
-import static com.megadeploy.utility.LogUtil.*;
-import java.sql.Connection;
-import java.sql.DriverManager;
-import java.sql.SQLException;
 import java.util.List;
 
-import com.megadeploy.annotations.core.DataObject;
-import com.megadeploy.database.interfaces.DatabaseManager;
+import com.megadeploy.database.interfaces.StorageManagerVoid;
 import com.megadeploy.database.storagemanagers.InMemoryStorageManager;
 
 public class InMemoryDatabaseInitializer {
@@ -77,7 +63,7 @@ public class InMemoryDatabaseInitializer {
         }
     }
 
-    public DatabaseManager getDatabaseManager() {
+    public StorageManagerVoid getDatabaseManager() {
         return inMemoryStorageManager;
     }
 }

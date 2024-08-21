@@ -5,8 +5,10 @@ import com.megadeploy.annotations.core.Endpoint;
 import com.megadeploy.annotations.core.Operator;
 import com.megadeploy.annotations.core.Storage;
 import com.megadeploy.annotations.initializer.AutoInitialize;
+import com.megadeploy.configuration.WebJavaFrameworkConfiguration;
 import com.megadeploy.core.scanners.ClassFinder;
-import com.megadeploy.database.interfaces.DatabaseManager;
+import com.megadeploy.database.interfaces.StorageManagerVoid;
+import com.megadeploy.database.storagemanagers.DummyStorageManager;
 import com.megadeploy.database.storagemanagers.InMemoryStorageManager;
 import com.megadeploy.core.servlets.OpenApiServlet;
 import com.megadeploy.core.servlets.SwaggerUiServlet;
@@ -24,8 +26,12 @@ import org.eclipse.jetty.servlet.ServletHolder;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.sql.Connection;
+import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.List;
+
+import static com.megadeploy.utility.LogUtil.logConfig;
+import static com.megadeploy.utility.LogUtil.logWebJava;
 
 public class WebJavaServer {
     private final Server server;
@@ -34,8 +40,9 @@ public class WebJavaServer {
     private final int mainPort;
     private static String appBasePackage = "";
     private static final String OPENAPI_JSON = "src/main/resources/openapi.json";
-    private final InMemoryStorageManager inMemoryStorageManager;
     private InMemoryDatabaseInitializer databaseInitializer;
+    private InMemoryStorageManager inMemoryStorageManager;
+    private DummyStorageManager dummyStorageManager;
 
     public WebJavaServer(int port, Class<?> mainClass) throws SQLException, IOException, ClassNotFoundException {
         printWebJavaBanner();
@@ -44,9 +51,20 @@ public class WebJavaServer {
         this.dependencyRegistry = new DependencyRegistry();
         this.appBasePackage = mainClass.getPackage().getName();
         this.mainPort = port;
-        databaseInitializer = new InMemoryDatabaseInitializer();
-        databaseInitializer.initializeDatabase();
-        this.inMemoryStorageManager = new InMemoryStorageManager(databaseInitializer.getConnection());
+        initializeComponentsBasedOnConfig();
+    }
+
+    public void initializeComponentsBasedOnConfig() throws SQLException, ClassNotFoundException, IOException {
+        WebJavaFrameworkConfiguration config = WebJavaFrameworkConfiguration.loadConfig();
+        if (config.isEnableInMemoryDatabase()) {
+            databaseInitializer = new InMemoryDatabaseInitializer();
+            databaseInitializer.initializeDatabase();
+            this.inMemoryStorageManager = new InMemoryStorageManager(databaseInitializer.getConnection());
+        }
+        if (config.isEnableDummyStorageManager()) {
+            this.dummyStorageManager = new DummyStorageManager();
+            logConfig("Dummy Storage Manager is enabled for your API");
+        }
     }
 
     public void start() throws Exception {
@@ -69,8 +87,8 @@ public class WebJavaServer {
 
 
     private void initializeDatabase() throws SQLException, IOException, ClassNotFoundException {
-        DatabaseManager databaseManager = databaseInitializer.getDatabaseManager();
-        dependencyRegistry.register(DatabaseManager.class, databaseManager);
+        StorageManagerVoid storageManager = databaseInitializer.getDatabaseManager();
+        dependencyRegistry.register(StorageManagerVoid.class, storageManager);
 
         Connection connection = inMemoryStorageManager.getConnection();
         if (connection != null) {
