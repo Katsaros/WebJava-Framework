@@ -16,6 +16,7 @@ import com.megadeploy.core.servlets.WebJavaServlet;
 import com.megadeploy.database.initializers.InMemoryDatabaseInitializer;
 import com.megadeploy.dependencyinjection.DependencyRegistry;
 import com.megadeploy.endpoints.StatusEndpoint;
+import com.megadeploy.generators.DiagramGenerator;
 import com.megadeploy.generators.OpenApiGenerator;
 import com.megadeploy.utility.BannerUtil;
 import com.megadeploy.utility.LogUtil;
@@ -26,12 +27,10 @@ import org.eclipse.jetty.servlet.ServletHolder;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.util.List;
 
 import static com.megadeploy.utility.LogUtil.logConfig;
-import static com.megadeploy.utility.LogUtil.logWebJava;
 
 public class WebJavaServer {
     private final Server server;
@@ -72,19 +71,18 @@ public class WebJavaServer {
         findAndRegisterFrameworkEndpoints();
         initializeAutoInitializeClasses();
         generateOpenApiSpec();
+        generateDiagramForEndpoints();
         configureAndStartServer();
+    }
+
+    private static void generateDiagramForEndpoints() throws Exception {
+        DiagramGenerator generator = new DiagramGenerator();
+        generator.generateDiagram("src/main/resources/diagram.png");
     }
 
     public void stop() throws Exception {
         server.stop();
     }
-
-    private Connection createConnection() throws SQLException, IOException, ClassNotFoundException {
-        InMemoryDatabaseInitializer initializer = new InMemoryDatabaseInitializer();
-        initializer.initializeDatabase();
-        return initializer.getConnection();
-    }
-
 
     private void initializeDatabase() throws SQLException, IOException, ClassNotFoundException {
         StorageManagerVoid storageManager = databaseInitializer.getDatabaseManager();
