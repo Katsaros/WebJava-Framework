@@ -18,6 +18,8 @@ import java.lang.reflect.Method;
 import static com.megadeploy.utility.LogUtil.logWebJava;
 
 import java.lang.reflect.Constructor;
+import java.util.Arrays;
+import java.util.stream.Collectors;
 
 public class WebJavaServlet extends HttpServlet {
 
@@ -60,8 +62,12 @@ public class WebJavaServlet extends HttpServlet {
             Method method = getEndpointMethod(methodType, path);
             if (method != null) {
                 Object endpointInstance = getOrCreateEndpointInstance(method.getDeclaringClass());
-                Object result = method.invoke(endpointInstance);
+
+                Object[] methodArguments = parseRequestBody(req, method.getParameterTypes());
+
+                Object result = method.invoke(endpointInstance, methodArguments);
                 String jsonResponse = JsonResponseUtil.toJson(result);
+
                 resp.setStatus(HttpServletResponse.SC_OK);
                 resp.setContentType("application/json");
                 resp.getWriter().write(jsonResponse != null ? jsonResponse : "");
@@ -73,6 +79,19 @@ public class WebJavaServlet extends HttpServlet {
             resp.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
             resp.getWriter().write("Internal server error: " + e.getMessage());
         }
+    }
+
+    private Object[] parseRequestBody(HttpServletRequest req, Class<?>[] parameterTypes) throws IOException {
+        if (parameterTypes.length == 0) {
+            return new Object[0];
+        }
+
+        if (parameterTypes.length == 1) {
+            String jsonBody = req.getReader().lines().collect(Collectors.joining(System.lineSeparator()));
+            return new Object[]{JsonResponseUtil.fromJson(jsonBody, parameterTypes[0])};
+        }
+
+        throw new IllegalArgumentException("Unsupported number of parameters in method: " + Arrays.toString(parameterTypes));
     }
 
     private Method getEndpointMethod(String methodType, String path) {
@@ -91,13 +110,11 @@ public class WebJavaServlet extends HttpServlet {
     }
 
     private Object getOrCreateEndpointInstance(Class<?> endpointClass) throws Exception {
-        // Check if instance already exists in the registry
         Object instance = dependencyRegistry.getInstanceByType(endpointClass);
         if (instance != null) {
             return instance;
         }
 
-        // Create a new instance with dependencies
         Constructor<?>[] constructors = endpointClass.getDeclaredConstructors();
         for (Constructor<?> constructor : constructors) {
             if (constructor.getParameterCount() > 0) {
